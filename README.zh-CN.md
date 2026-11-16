@@ -4,7 +4,7 @@
 
 <h1 align="center">Antigravity 能量胶囊</h1>
 
-<p align="center"><b>专为 Google Antigravity 2.0 打造的原生底部栏实时监控。</b><br>在「极速（<code>Turbo</code>）」按钮旁实时显示 <code>tok/s</code>、上下文容量胶囊、Prompt 缓存命中率和 5 小时额度重置倒计时。</p>
+<p align="center"><b>专为 Google Antigravity 2.0 打造的纯客户端原生底部栏实时监控。</b><br>在「极速（<code>Turbo</code>）」按钮旁实时显示 <code>tok/s</code>、上下文容量胶囊、Prompt 缓存命中率和 5 小时额度重置倒计时。<br><sub><b>0 外部常驻进程 · 0 本地代理端口 · 0 SQLite 数据库轮询</b></sub></p>
 
 <p align="center">
   <a href="https://github.com/akelabs/antigravity-pulse/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/akelabs/antigravity-pulse?style=flat-square&label=release&labelColor=0B0B0F&color=3B82F6"></a>
@@ -13,7 +13,7 @@
   <img alt="Zero dependencies" src="https://img.shields.io/badge/dependencies-0-0B0B0F?style=flat-square&labelColor=0B0B0F&color=C26C77">
 </p>
 
-<p align="center"><a href="#快速安装"><b>快速安装</b></a> · <a href="#核心特性"><b>核心特性</b></a> · <a href="#隐私与安全说明"><b>隐私与安全</b></a> · <a href="https://github.com/akelabs/antigravity-pulse/releases/latest"><b>下载</b></a><br><sub><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a></sub></p>
+<p align="center"><a href="#原生架构"><b>原生架构</b></a> · <a href="#核心特性"><b>核心特性</b></a> · <a href="#快速安装"><b>快速安装</b></a> · <a href="#隐私与安全说明"><b>隐私与安全</b></a> · <a href="https://github.com/akelabs/antigravity-pulse/releases/latest"><b>下载</b></a><br><sub><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a></sub></p>
 
 <p align="center">
   <img src="assets/demo-preview.gif" alt="Antigravity 能量胶囊演示" width="88%">
@@ -21,13 +21,36 @@
 
 ---
 
+<a id="原生架构"></a>
+
+## 为什么采用纯客户端原生架构？（零后台常驻）
+
+其他上下文监控工具往往需要在系统后台额外常驻独立的 Node.js / Python 守护进程、开启本地轮询服务端口，或高频扫描磁盘上的本地 SQLite 数据库文件（`state.vscdb` 与本地日志）才能推算上下文上限与用量——不仅安装链路重、额外占用后台内存与磁盘 I/O，还容易在同屏多窗口、远程云端会话或客户端升级后失联。
+
+**Antigravity 能量胶囊（`Antigravity Pulse`）** 采用截然不同的**纯客户端原生实现**：**0 外部常驻进程、0 本地代理端口、0 SQLite 数据库轮询**。直接运行在 Antigravity 原生渲染层内部，同源直连客户端内存级 `GeneratorMetadata` 与轨迹状态（辅以 React Fiber 组件树隔离与无损流感知），装完即与官方底部栏融为一体：
+
+| 对比维度 | 传统外挂后台常驻 / 扫库方案 | Antigravity 能量胶囊（纯客户端原生） |
+| :--- | :--- | :--- |
+| **后台常驻开销** | 需额外常驻 Node.js / Python 守护进程与本地轮询端口 | **0 外部常驻进程 · 0 本地端口**（直接运行于原生渲染层内部） |
+| **数据获取方式** | 高频扫描本地 `state.vscdb` SQLite 数据库与磁盘日志 | **同源直读内存级 `GeneratorMetadata` 与会话状态**（0 磁盘 I/O，空闲 0 请求） |
+| **上下文动态上限** | 依赖手工写死估算值或滞后的日志推算 | **发话即获服务端真实压缩水位**（`80k` / `256k` / `512k` / `840k` / `1M+`） |
+| **多窗口与云端场景** | 同屏多开易串台，远程云端项目或网页版易失联 | **React Fiber 组件级独立隔离**，桌面本地、云端与网页版三栖通吃 |
+| **界面融合质感** | 挤在旧式最底部状态栏显示纯文字 | **原生嵌入 `.agy-composer-footer` 工具栏**，紧邻官方 `Turbo` 按钮 |
+| **热更新与无损恢复** | 需维护后台服务启停，客户端升级后易断连残留 | **`Reload Window` 1 秒热生效**，`< 5ms` 极速巡检，`.orig.bak` 一行无损还原 |
+
+1. **原生实时动态上限**：无需后台扫库，发话即从当前会话原生 `GeneratorMetadata` 自动获取真实生效的压缩水位（如本地 Gemini 4 的 `512k`、Claude Opus 5.5 的 `840k`、云端／网页后端的 `256k`、GPT-OSS 的 `80k` 乃至 `1M+`，仅在首轮发话前以 `512k`／`256k`／`80k` 家族基准兜底，并自动过滤后台子智能体与生图影子模型），**空闲时 0 重复请求**。
+2. **真正的多窗口与本地 / 云端 / 网页三栖通吃**：每个聊天框从自身 React Fiber 组件树独立锁定会话 ID，同窗口多面板绝不串台；一套内核同时支持 **Windows、macOS（Apple Silicon & Intel）桌面客户端**、**Remote Agent 云端项目**及**浏览器网页版**。
+3. **官方同级克制美学与纯原生 DOM 安全渲染**：继承官方底部栏无衬线字体、`tabular-nums` 等宽数字、`6px` 圆角与明暗自适应 `shadow-md` 阴影，搭配 3A 冷雾莫兰迪三色胶囊；全程**零 `innerHTML`** 纯原生 DOM 构建，严格符合 CSP 与 Trusted Types 安全规范。
+4. **1 秒热重载与 `< 5ms` 自愈**：首次注入（约 `20ms` 原子修补）自动留存 `.orig.bak` 原包备份；日常更新载荷执行 `Developer: Reload Window` 即可 **1 秒免重启生效**，支持 `< 5ms` 状态自检与一行命令随时无损还原。
+
+---
+
 ## 核心特性
 
 - **原生底部栏融合排布**：从左到右依次为 `⚡ XX tok/s` ➔ `3A 莫兰迪跑道胶囊 (31k/256k, 12.1%)` ➔ `极速 (Turbo)`，无需低头去旧式状态栏找小字。
-- **1:1 对齐官方 `Turbo` 浮层质感**：全面剔除花哨 Emoji，继承官方 UI 无衬线字体与 `tabular-nums` 等宽数字，标题 `500`／正文 `400` 字重、`6px` 圆角、官方 Tailwind `shadow-md` 阴影，实时自适应白天与黑夜模式。
-- **三栖全场景打通**：同时支持 **桌面客户端本地项目**、**桌面客户端云端项目（Remote Agent）** 与 **浏览器网页版**。
-- **多对话框精准隔离与动态分母自动读取**：通过 React Fiber 隔离同窗口多聊天面板，并在渲染层同源直读会话原生 `GeneratorMetadata` 运行态上限（辅以网络旁路感知，无需常驻任何外部后台进程），零维护自动识别当前环境真正生效的压缩水位（如本地 Gemini 4 的 `512k`、Claude Opus 5.5 的 `840k`、云端／网页后端的 `256k`、GPT-OSS 的 `80k` 乃至未来 `1M+`，仅在首轮发话前以 `512k`／`256k`／`80k` 家族基准兜底），同时自动过滤后台子智能体与生图影子模型。
-- **精准 5 小时额度倒计时与压缩感知**：完整解析 Protobuf `Timestamp` 与共享配额池重置时间（如 `2h 40m 后重置`），严格隔离跨池额度；内置 `> 5,000` Tokens 上下文压缩检测（兼容自动压缩与手动 `/compact`，支持撤回消息 Undo 免疫且随新轮次增长自动退场，绝不遮挡后续 `>= 85%` 临界归档提醒）。
+- **1:1 对齐官方 `Turbo` 浮层质感**：全面剔除花哨 Emoji，标题 `500`／正文 `400` 字重与等宽数字对齐，实时自适应白天与黑夜模式。
+- **真实端到端 `tok/s` 与上下文压缩追踪**：完整统计输出 Tokens（含思考链与正文）除以真实生成耗时，结合快照间字符级流式增量估算；内置 `> 5,000` Tokens 上下文压缩检测（兼容自动压缩与手动 `/compact`，支持撤回消息 Undo 免疫且随新轮次增长自动退场，绝不遮挡后续 `>= 85%` 临界归档提醒）。
+- **精准 5 小时额度倒计时**：完整解析 Protobuf `Timestamp` 与共享配额池重置时间（如 `2h 40m 后重置`），严格隔离跨池额度。
 - **点击胶囊秒切中英双语**：首次使用自动跟随系统语言；之后轻点胶囊即可在 `中文` 与 `English` 间即时切换并记住选择，内置防回译标记，与客户端汉化环境完美兼容。
 
 <table>
@@ -178,7 +201,7 @@ s="$(mktemp -t agy-pulse.XXXXXX)" && curl -fsSL https://github.com/akelabs/antig
 
 ## 隐私与安全说明
 
-- **零外部联网与纯 DOM 渲染**：所有指标均在本地渲染进程同源读取当前会话内存状态，浮层采用纯 DOM API 构建（不使用 `innerHTML`，不覆盖宿主页面全局 Trusted Types 策略），绝不向任何第三方服务器发送请求。
+- **零外部联网、零后台常驻与纯 DOM 渲染**：所有指标均在本地渲染进程同源读取当前会话内存状态，不启动任何外部守护进程或本地端口；浮层采用纯 DOM API 构建（不使用 `innerHTML`，不覆盖宿主页面全局 Trusted Types 策略），绝不向任何第三方服务器发送请求。
 - **原子备份与 20ms 极速补丁**：修改前自动保存干净的 `.orig.bak` 原始备份，通过临时文件原子重命名更新 `app.asar` 内的 `dist/preload.js`，包内其余 760+ 个官方文件与已有汉化保持 `0` 改动。macOS 下仅在本地同步更新 `Contents/Info.plist` 中的 `ElectronAsarIntegrity` 并调用系统自带 `codesign` 进行本地 ad-hoc 重签名，不上传任何数据。
 
 ---
