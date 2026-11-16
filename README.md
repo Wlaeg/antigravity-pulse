@@ -4,7 +4,7 @@
 
 <h1 align="center">Antigravity Pulse</h1>
 
-<p align="center"><b>Native composer-bar telemetry for Google Antigravity 2.0.</b><br>Live <code>tok/s</code>, a context-capacity capsule, prompt cache hit ratio and the 5-hour quota countdown, right beside <code>Turbo</code>.</p>
+<p align="center"><b>100% client-native composer-bar telemetry for Google Antigravity 2.0.</b><br>Live <code>tok/s</code>, a context-capacity capsule, prompt cache hit ratio, and the 5-hour quota countdown — right beside <code>Turbo</code>.<br><sub><b>0 external background daemons · 0 local proxy ports · 0 SQLite database polling</b></sub></p>
 
 <p align="center">
   <a href="https://github.com/akelabs/antigravity-pulse/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/akelabs/antigravity-pulse?style=flat-square&label=release&labelColor=0B0B0F&color=3B82F6"></a>
@@ -13,7 +13,7 @@
   <img alt="Zero dependencies" src="https://img.shields.io/badge/dependencies-0-0B0B0F?style=flat-square&labelColor=0B0B0F&color=C26C77">
 </p>
 
-<p align="center"><a href="#quick-start"><b>Quick Start</b></a> · <a href="#why-antigravity-pulse"><b>Features</b></a> · <a href="#privacy--security"><b>Privacy</b></a> · <a href="https://github.com/akelabs/antigravity-pulse/releases/latest"><b>Download</b></a><br><sub><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a></sub></p>
+<p align="center"><a href="#why-client-native"><b>Why Client-Native?</b></a> · <a href="#features"><b>Features</b></a> · <a href="#quick-start"><b>Quick Start</b></a> · <a href="#privacy--security"><b>Privacy</b></a> · <a href="https://github.com/akelabs/antigravity-pulse/releases/latest"><b>Download</b></a><br><sub><a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a></sub></p>
 
 <p align="center">
   <img src="assets/demo-preview.gif" alt="Antigravity Pulse demo" width="88%">
@@ -21,20 +21,36 @@
 
 ---
 
-## Why Antigravity Pulse
+## Why Client-Native?
 
-Existing context monitors sit in the legacy bottom status bar as plain text and fail when switching between multiple chat panes, Remote Agent cloud workspaces, or the browser web client.
+Other context monitors typically rely on **external background daemons** — spinning up standalone Node.js or Python processes, opening local polling ports, or repeatedly scanning SQLite database files (`state.vscdb` and disk logs) to estimate context limits and token usage. That approach adds setup complexity, consumes extra background memory and disk I/O, and easily loses sync across multiple windows, Remote Agent cloud workspaces, or silent client updates.
 
-**Antigravity Pulse (`AGY-Pulse`)** lives directly inside `.agy-composer-footer` with native typography, spacing, and elevation:
+**Antigravity Pulse (`AGY-Pulse`)** is built **100% client-native**: **0 external background processes, 0 local proxy ports, and 0 SQLite database polling**. It runs directly inside Antigravity's native renderer, reading in-memory session `GeneratorMetadata` and trajectory state same-origin (paired with React Fiber component isolation and passive stream inspection) so it merges seamlessly into the official composer bar:
 
-- **Native Composer-Bar Layout**: `⚡ XX tok/s` ➔ `Morandi Runway Capsule (31k/256k, 12.1%)` ➔ `Turbo`.
+| Dimension | External Daemon / DB-Polling Tools | Antigravity Pulse (Client-Native) |
+| :--- | :--- | :--- |
+| **Background Footprint** | Standalone Node.js / Python daemon + local polling port | **0 external processes · 0 local ports** (runs inside native renderer) |
+| **Telemetry Source** | High-frequency disk polling on `state.vscdb` / local logs | **Direct in-memory `GeneratorMetadata` & session state** (0 disk I/O, 0 idle requests) |
+| **Context Ceiling** | Hardcoded guesses or delayed log heuristics | **Live server-enforced ceiling from turn 1** (`80k` / `256k` / `512k` / `840k` / `1M+`) |
+| **Multi-Window & Cloud** | Prone to pane cross-talk; breaks in Remote / Web sessions | **Per-pane React Fiber isolation** across Local, Remote Agent & Browser Web |
+| **UI Integration** | Plain text tucked into the legacy bottom status bar | **Native `.agy-composer-footer` capsule** right beside `Turbo` |
+| **Updates & Recovery** | Daemon lifecycle management & broken state after upgrades | **1s `Reload Window` hot-reload**, `< 5ms` health check & `.orig.bak` 1-line restore |
+
+1. **Native Real-Time Dynamic Ceilings**: Without scanning local databases, sending a message reads the active session's true server-enforced compaction ceiling directly from native metadata (e.g. `512k` on local Gemini 4, `840k` on Claude Opus 5.5, `256k` on cloud/web sessions, `80k` on GPT-OSS, up to `1M+` — distinguishing local vs. cloud/web fallback baselines when metadata is absent and filtering out background shadow/image sub-models) — with **0 repeated requests while idle**.
+2. **True Multi-Window & Local / Cloud / Web Coverage**: Every chat pane isolates its own conversation ID directly from its React Fiber component tree, preventing side-by-side cross-talk across **Windows & macOS (Apple Silicon & Intel) desktop clients**, **Remote Agent cloud workspaces**, and the **Browser Web client**.
+3. **Official Restraint & Pure-DOM Security**: Inherits the composer footer's native UI sans-serif font (`tabular-nums`), `6px` corner radius, and Light/Dark `shadow-md` elevation with a 3-tier muted Morandi capsule — rendered with **zero `innerHTML`** for strict CSP / Trusted Types safety.
+4. **1-Second Hot-Reload & `< 5ms` Self-Healing**: Automatically preserves a clean `.orig.bak` archive backup on first injection (`~20ms` atomic patch). Routine updates take effect in ~1 second via `Developer: Reload Window`, health checks finish in `< 5ms`, and a single command restores the original bundle cleanly.
+
+---
+
+## Features
+
+- **Native Composer-Bar Layout**: `⚡ XX tok/s` ➔ `Morandi Runway Capsule (31k/256k, 12.1%)` ➔ `Turbo` inside `.agy-composer-footer` — no squinting at tiny status-bar text.
 - **Official `Turbo` Popover Aesthetics**: Zero emojis, inherited UI sans-serif with `tabular-nums`, `500/400` font weights, `6px` radius, Tailwind `shadow-md`, and instant Light/Dark theme adaptation.
-- **Per-Pane Isolation & Live Auto-Detected Context Ceilings**: Queries Antigravity's native per-session `GeneratorMetadata` in memory (plus React Fiber & passive stream inspection, with zero external background daemons) so side-by-side chat panes track their own independent context and true server-enforced compaction ceilings automatically (`80k`, `256k`, `512k`, `840k`, `1M+` across local vs. cloud/web backends, using `512k` / `256k` / `80k` model-family baselines only before turn 1 and filtering out background shadow/image sub-models).
 - **True End-to-End `tok/s` & Compaction Tracking**: Measures full output tokens (thinking + response) over real generation wall time, plus character-level live delta estimation between snapshots and `>5,000` token compaction detection across both automatic compaction and manual `/compact` (Undo-immune, auto-clearing as new turns grow so subsequent `>= 85%` warnings are never masked).
 - **5-Hour Quota Pool & Reset Countdown**: Accurately decodes Protobuf `Timestamp` objects and shared `gemini` / `premium` 5h quota pools (`Resets in 2h 40m`) with strict cross-pool isolation.
-- **3-Habitat Engine**: Works identically across **Desktop Local Projects**, **Desktop Remote Agent (Cloud Workspaces)**, and **Browser Web**.
-- **Near-Compaction Warning**: When context usage reaches `>= 85%`, the popover shows a quiet warning that automatic compaction is about to kick in.
-- **1-Click `EN` ⇄ `中文` Toggle**: Follows your system language on first run, and a click on the capsule switches popover language anytime (your choice is remembered).
+- **Near-Compaction Warning**: When context usage reaches `>= 85%`, the popover shows a quiet warning before automatic compaction kicks in.
+- **1-Click `EN` ⇄ `中文` Toggle**: Follows your system language on first run, and clicking the capsule switches popover language anytime (your choice is remembered).
 
 <table>
   <tr>
@@ -184,7 +200,7 @@ In the browser, remove the extension from `chrome://extensions/` (or `edge://ext
 
 ## Privacy & Security
 
-- **100% Local & Same-Origin**: Reads telemetry strictly from your own active Antigravity session in memory, using pure DOM construction (no `innerHTML` or global Trusted Types overrides). Zero external network requests, zero analytics, zero telemetry servers.
+- **100% Local & Same-Origin**: Reads telemetry strictly from your own active Antigravity session in memory, using pure DOM construction (no `innerHTML` or global Trusted Types overrides). Zero external network requests, zero background daemons, zero analytics, zero telemetry servers.
 - **Atomic Backup & Surgical `~20ms` Patch**: Automatically saves a clean `.orig.bak` backup before modifying `dist/preload.js` inside `app.asar` via atomic temp-file rename, keeping all other 760+ application files untouched. On macOS, it updates `ElectronAsarIntegrity` in `Contents/Info.plist` locally and invokes the built-in `codesign` tool for local ad-hoc re-signing without uploading any data.
 
 ---
